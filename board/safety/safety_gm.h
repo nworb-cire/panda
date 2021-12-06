@@ -36,7 +36,7 @@ const GM_LIMIT GM_LIMITS[] =
   },
   { // safety param 1 - Trucks
     .GM_MAX_STEER = 600,
-    .GM_MAX_RT_DELTA = 128,
+    .GM_MAX_RT_DELTA = 319,
     .GM_MAX_RATE_UP = 14, 
     .GM_MAX_RATE_DOWN = 34,
     .GM_DRIVER_TORQUE_ALLOWANCE = 100,
