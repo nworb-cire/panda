@@ -36,6 +36,7 @@ bool get_gas_interceptor_detetcted(void);
 int get_gas_interceptor_prev(void);
 bool get_gas_pressed_prev(void);
 bool get_brake_pressed_prev(void);
+bool get_acc_main_on(void);
 
 void set_torque_meas(int min, int max);
 int get_torque_meas_min(void);
@@ -56,6 +57,9 @@ int safety_rx_hook(CANPacket_t *to_send);
 int safety_tx_hook(CANPacket_t *to_push);
 int safety_fwd_hook(int bus_num, CANPacket_t *to_fwd);
 int set_safety_hooks(uint16_t  mode, int16_t param);
+
+void safety_tick_current_rx_checks();
+bool addr_checks_valid();
 
 void init_tests(void);
 
