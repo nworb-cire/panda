@@ -53,6 +53,13 @@ bool gm_allow_fwd = false;
 bool gm_block_fwd = false;
 int gm_camera_bus = 2;
 bool gm_has_relay = true;
+uint32_t gm_lkas_last_ts = 0;
+const uint32_t GM_LKAS_MIN_INTERVAL = 20000;    // 20ms minimum between LKAS frames
+const uint32_t GM_LKAS_MAX_INTERVAL = 150000;    // 200ms max between active LKAS frames
+//precalculated inactive zero values to be sent when there is a violation or inactivation
+const uint32_t gm_inactive_lkas_vals[4] = {0x00000000U, 0x10000fffU, 0x20000ffeU, 0x30000ffdU};
+
+
 
 #define GM_MAX_STEER (GM_LIMITS[gm_safety_param].GM_MAX_STEER)
 #define GM_MAX_RT_DELTA (GM_LIMITS[gm_safety_param].GM_MAX_RT_DELTA)
@@ -209,6 +216,7 @@ static int gm_tx_hook(CANPacket_t *to_send) {
 
   // LKA STEER: safety check
   if (addr == 384) {
+    int rolling_counter = GET_BYTE(to_send, 0) >> 4;
     int desired_torque = ((GET_BYTE(to_send, 0) & 0x7U) << 8) + GET_BYTE(to_send, 1);
     uint32_t ts = microsecond_timer_get();
     bool violation = 0;
@@ -252,6 +260,46 @@ static int gm_tx_hook(CANPacket_t *to_send) {
 
     if (violation) {
       tx = 0;
+    }    
+
+    // TODO: Min / max LKAS timing and in-order enforcement - move to OP
+    // TEMPORARY HACK for EPS faults
+    uint32_t lkas_elapsed = get_ts_elapsed(ts, gm_lkas_last_ts);
+    //TODO: Maybe should be checked at the moment the frame is sent via CAN - rcv interrupt could maybe prevent sending??
+    if (tx == 1)
+      
+      int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
+      //If less than 20ms have passed since last LKAS message or the rolling counter value isn't correct it is a violation
+      //TODO: The interval may need some fine tuning - testing the tolerance of the PSCM / send lag
+      if (lkas_elapsed < GM_LKAS_MIN_INTERVAL || rolling_counter != expected_lkas_rc) {
+        tx = 0;
+      }
+      else {
+        //otherwise, save values
+        gm_lkas_last_rc = rolling_counter;
+        gm_lkas_last_ts = ts;
+      }
+    }
+    else if (lkas_elapsed >= GM_LKAS_MAX_INTERVAL) {
+      // There has been a long delay; we need to send _SOMETHING_
+      //TODO: this could be done OP side
+      int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
+      to_send->data = gm_inactive_lkas_vals[expected_lkas_rc];
+        //otherwise, save values
+        gm_lkas_last_rc = rolling_counter;
+        gm_lkas_last_ts = ts;
+    }
+
+    
+    
+
+
+    )
+      else {
+        //otherwise, save values
+        gm_lkas_last_rc = rolling_counter;
+        gm_lkas_last_ts = ts;
+      }
     }
   }
 
