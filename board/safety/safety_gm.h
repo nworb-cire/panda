@@ -53,7 +53,8 @@ bool gm_allow_fwd = false;
 bool gm_block_fwd = false;
 int gm_camera_bus = 2;
 bool gm_has_relay = true;
-uint32_t gm_lkas_last_ts = 0;
+uint32_t gm_lkas_last_ts = 0U;
+int gm_lkas_last_rc = 0;
 const uint32_t GM_LKAS_MIN_INTERVAL = 20000;    // 20ms minimum between LKAS frames
 const uint32_t GM_LKAS_MAX_INTERVAL = 150000;    // 200ms max between active LKAS frames
 //precalculated inactive zero values to be sent when there is a violation or inactivation
@@ -267,7 +268,7 @@ static int gm_tx_hook(CANPacket_t *to_send) {
     uint32_t lkas_elapsed = get_ts_elapsed(ts, gm_lkas_last_ts);
     //TODO: Maybe should be checked at the moment the frame is sent via CAN - rcv interrupt could maybe prevent sending??
     if (tx == 1)
-      
+      {
       int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
       //If less than 20ms have passed since last LKAS message or the rolling counter value isn't correct it is a violation
       //TODO: The interval may need some fine tuning - testing the tolerance of the PSCM / send lag
@@ -284,22 +285,20 @@ static int gm_tx_hook(CANPacket_t *to_send) {
       // There has been a long delay; we need to send _SOMETHING_
       //TODO: this could be done OP side
       int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
-      to_send->data = gm_inactive_lkas_vals[expected_lkas_rc];
-        //otherwise, save values
-        gm_lkas_last_rc = rolling_counter;
-        gm_lkas_last_ts = ts;
+      //to_send->data = gm_inactive_lkas_vals[expected_lkas_rc];
+
+      //to_send->data[0] = gm_inactive_lkas_vals[expected_lkas_rc];
+
+      WORD_TO_BYTE_ARRAY(to_send->data, gm_inactive_lkas_vals[expected_lkas_rc]);
+      tx = 1;
+      //otherwise, save values
+      gm_lkas_last_rc = rolling_counter;
+      gm_lkas_last_ts = ts;
     }
-
-    
-    
-
-
-    )
-      else {
-        //otherwise, save values
-        gm_lkas_last_rc = rolling_counter;
-        gm_lkas_last_ts = ts;
-      }
+    else {
+      //otherwise, save values
+      gm_lkas_last_rc = rolling_counter;
+      gm_lkas_last_ts = ts;
     }
   }
 
@@ -381,6 +380,8 @@ static const addr_checks* gm_init(int16_t param) {
   gm_block_fwd = false;
   gm_camera_bus = 2;
   gm_has_relay = true;
+  gm_lkas_last_ts = 0U;
+  gm_lkas_last_rc = 0;
 
   if (car_harness_status == HARNESS_STATUS_NC) {
     //puts("gm_init: No harness attached, assuming OBD or Giraffe\n");
