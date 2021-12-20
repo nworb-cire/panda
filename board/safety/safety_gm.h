@@ -266,10 +266,10 @@ static int gm_tx_hook(CANPacket_t *to_send) {
     // TODO: Min / max LKAS timing and in-order enforcement - move to OP
     // TEMPORARY HACK for EPS faults
     uint32_t lkas_elapsed = get_ts_elapsed(ts, gm_lkas_last_ts);
+    int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
     //TODO: Maybe should be checked at the moment the frame is sent via CAN - rcv interrupt could maybe prevent sending??
     if (tx == 1)
       {
-      int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
       //If less than 20ms have passed since last LKAS message or the rolling counter value isn't correct it is a violation
       //TODO: The interval may need some fine tuning - testing the tolerance of the PSCM / send lag
       if (lkas_elapsed < GM_LKAS_MIN_INTERVAL || rolling_counter != expected_lkas_rc) {
@@ -283,20 +283,8 @@ static int gm_tx_hook(CANPacket_t *to_send) {
     }
     else if (lkas_elapsed >= GM_LKAS_MAX_INTERVAL) {
       // There has been a long delay; we need to send _SOMETHING_
-      //TODO: this could be done OP side
-      int expected_lkas_rc = (gm_lkas_last_rc + 1) % 4;
-      //to_send->data = gm_inactive_lkas_vals[expected_lkas_rc];
-
-      //to_send->data[0] = gm_inactive_lkas_vals[expected_lkas_rc];
-
       WORD_TO_BYTE_ARRAY(to_send->data, gm_inactive_lkas_vals[expected_lkas_rc]);
       tx = 1;
-      //otherwise, save values
-      gm_lkas_last_rc = rolling_counter;
-      gm_lkas_last_ts = ts;
-    }
-    else {
-      //otherwise, save values
       gm_lkas_last_rc = rolling_counter;
       gm_lkas_last_ts = ts;
     }
