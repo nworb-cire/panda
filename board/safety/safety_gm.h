@@ -55,7 +55,7 @@ int gm_camera_bus = 2;
 bool gm_has_relay = true;
 uint32_t gm_lkas_last_ts = 0U;
 int gm_lkas_last_rc = 0;
-const uint32_t GM_LKAS_MIN_INTERVAL = 20000;    // 20ms minimum between LKAS frames
+const uint32_t GM_LKAS_MIN_INTERVAL = 19000;    // 20ms minimum between LKAS frames
 const uint32_t GM_LKAS_MAX_INTERVAL = 150000;    // 200ms max between active LKAS frames
 //precalculated inactive zero values to be sent when there is a violation or inactivation
 const uint32_t gm_inactive_lkas_vals[4] = {0x00000000U, 0x10000fffU, 0x20000ffeU, 0x30000ffdU};
