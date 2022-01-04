@@ -139,7 +139,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
       brake_pressed = GET_BYTE(to_push, 1) >= 10U;
     }
 
-    if (addr == 452) { //TODO: can we safely use v2?
+    if (addr == 452) {
       gas_pressed = GET_BYTE(to_push, 5) != 0U;
     }
 
