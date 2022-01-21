@@ -249,6 +249,9 @@ static int gm_tx_hook(CANPacket_t *to_send) {
       }
     }
 
+    //TODO: JJS: Unsafe disabling all limit checks...
+    violation = 0;
+
     // no torque if controls is not allowed
     if (!current_controls_allowed && (desired_torque != 0)) {
       violation = 1;
