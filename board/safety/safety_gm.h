@@ -133,12 +133,12 @@ static int gm_rx_hook(CANPacket_t *to_push) {
     }
 
     // exit controls on regen paddle
-    //TODO: change this to set brake_pressed (match carstate.py logic)?
+    //TODO: Evaluate impact of this change. Previous method could have caused controls mismatch...
     if (addr == 189) {
-      bool regen = GET_BYTE(to_push, 0) & 0x20U;
-      if (regen) {
-        controls_allowed = 0;
-      }
+      brake_pressed = GET_BYTE(to_push, 0) & 0x20U;
+      // if (regen) {
+      //   controls_allowed = 0;
+      // }
     }
 
     // Pedal Interceptor
