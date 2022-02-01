@@ -8,6 +8,8 @@
 //      brake rising edge
 //      brake > 0mph
 
+//const int GM_PARAM_HIGH_TORQUE = 1;
+//const int GM_PARAM_ENABLE_FWD = 2;
 
 typedef struct GM_LIMIT {
   const int GM_MAX_STEER;
@@ -49,7 +51,7 @@ const GM_LIMIT GM_LIMITS[] =
 
 int gm_safety_param = 0;
 int gm_good_cam_cnt = 0;
-bool gm_allow_fwd = false;
+bool gm_allow_fwd = true;
 bool gm_block_fwd = false;
 int gm_camera_bus = 2;
 bool gm_has_relay = true;
@@ -279,20 +281,55 @@ static int gm_tx_hook(CANPacket_t *to_send) {
   return tx;
 }
 
-static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
 
+static void gm_validate_camera(int addr, CANPacket_t *to_fwd) {
+  //TODO: Add more known good camera message ids
+  if (addr == 384) {
+    int len = GET_LEN(to_fwd);
+    if (len == 4) {
+      gm_allow_fwd = true;
+      gm_good_cam_cnt++;
+    }
+    else {
+      gm_good_cam_cnt = 0;
+      gm_block_fwd = true;
+    }
+  }
+  else if ((addr == 1120) // F_LRR_Obj_Header from object bus
+        || (addr == 784) // ASCMHeadlight from object bus
+        || (addr == 309) // LHT_CameraObjConfirmation_FO from object bus
+        || (addr == 192) // Unknown id only on chassis bus
+  ) {
+    gm_good_cam_cnt = 0;
+    gm_block_fwd = true;
+  }
+}
+
+static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
   int bus_fwd = -1;
 
-  if (gm_allow_fwd && !gm_block_fwd) {
-    if (bus_num == 0) {
-      // TODO: Catch message 388 and edit the HandsOffSWlDetectionStatus to 1 (0 is hands off)
-      // Note: Blocking 388 causes error message when pressing LKAS button
+  if (bus_num == 0) {
+    if (gm_allow_fwd && !gm_block_fwd) {
       bus_fwd = gm_camera_bus;
     }
-    else if (bus_num == gm_camera_bus) {
-      int addr = GET_ADDR(to_fwd);
+  }
+  else if (bus_num == gm_camera_bus) {
+    int addr = GET_ADDR(to_fwd);
+
+    // Do extra testing on frames from the came bus untill we have seen 2 good LKAS frames
+    // If any bad frames are encountered before then, forwarding is blocked
+    // For OBD-based connections, forwarding defaults to off and is enabled if we see good LKAS
+    // For harness-based connections, forwarding defaults to on and is disabled if we see bad frames
+    // TODO: Can this all be determined by OP and sent as a param?
+    // OP FP may be able to detect all of this...
+    // This testing is limited in duration to reduce load
+    if (!gm_block_fwd && gm_good_cam_cnt <= 2) {
+      gm_validate_camera(addr, to_fwd);
+    }
+    
+    if (gm_allow_fwd && !gm_block_fwd) {
       // block stock lkas messages and stock acc messages (if OP is doing ACC)
-      //TODO: Blocking stock camera ACC will need to be an option
+      //TODO: Blocking stock camera ACC will need to be an option in custom fork to allow use of OP's VOACC.
       int is_lkas_msg = (addr == 384);
       int is_acc_msg = false;
       //int is_acc_msg = (addr == 0x343);
@@ -300,29 +337,6 @@ static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
       if (!block_msg) {
         bus_fwd = 0;
       }
-    }
-  }
-  else {
-    // Evaluate traffic to determine if forwarding should be enabled (only camera on bus 2)
-    if (!gm_allow_fwd && !gm_block_fwd && bus_num == gm_camera_bus) {
-      int addr = GET_ADDR(to_fwd);
-      int len = GET_LEN(to_fwd);
-
-      if ((addr == 384 && len != 4) //chassis bus has 384 of different size
-        || (addr == 1120) // F_LRR_Obj_Header from object bus
-        || (addr == 784) // ASCMHeadlight from object bus
-        || (addr == 309) // LHT_CameraObjConfirmation_FO from object bus
-        || (addr == 192) // Unknown id only on chassis bus
-      ) {
-        gm_block_fwd = true;
-      }
-      else if (addr == 384 && len == 4) {
-        gm_good_cam_cnt++;
-      }
-
-      if (gm_good_cam_cnt > 10) {
-        gm_allow_fwd = true;
-      } 
     }
   }
 
@@ -333,7 +347,7 @@ static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
 static const addr_checks* gm_init(int16_t param) {
   gm_safety_param = (int)param;
   gm_good_cam_cnt = 0;
-  gm_allow_fwd = false;
+  gm_allow_fwd = true;
   gm_block_fwd = false;
   gm_camera_bus = 2;
   gm_has_relay = true;
@@ -341,8 +355,10 @@ static const addr_checks* gm_init(int16_t param) {
   if (car_harness_status == HARNESS_STATUS_NC) {
     //puts("gm_init: No harness attached, assuming OBD or Giraffe\n");
     //OBD harness and older pandas use bus 1 and no relay
+    //Most likely if we are using the OBD Harness, we have an ASCM and don't want to forward.
     gm_has_relay = false;
     gm_camera_bus = 1;
+    gm_allow_fwd = false;
   }
 
   controls_allowed = false;
