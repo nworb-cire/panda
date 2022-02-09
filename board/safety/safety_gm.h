@@ -55,6 +55,7 @@ bool gm_allow_fwd = true;
 bool gm_block_fwd = false;
 int gm_camera_bus = 2;
 bool gm_has_relay = true;
+uint32_t gm_start_ts = 0;
 
 #define GM_MAX_STEER (GM_LIMITS[gm_safety_param].GM_MAX_STEER)
 #define GM_MAX_RT_DELTA (GM_LIMITS[gm_safety_param].GM_MAX_RT_DELTA)
@@ -230,19 +231,17 @@ static int gm_tx_hook(CANPacket_t *to_send) {
       // used next time
       desired_torque_last = desired_torque;
 
-      // *** torque real time rate limit check ***
-      violation |= rt_rate_limit_check(desired_torque, rt_torque_last, GM_MAX_RT_DELTA);
+      // TODO: JJS: Reenable after finding better numbers
+      // // *** torque real time rate limit check ***
+      // violation |= rt_rate_limit_check(desired_torque, rt_torque_last, GM_MAX_RT_DELTA);
 
-      // every RT_INTERVAL set the new limits
-      uint32_t ts_elapsed = get_ts_elapsed(ts, ts_last);
-      if (ts_elapsed > GM_RT_INTERVAL) {
-        rt_torque_last = desired_torque;
-        ts_last = ts;
-      }
+      // // every RT_INTERVAL set the new limits
+      // uint32_t ts_elapsed = get_ts_elapsed(ts, ts_last);
+      // if (ts_elapsed > GM_RT_INTERVAL) {
+      //   rt_torque_last = desired_torque;
+      //   ts_last = ts;
+      // }
     }
-
-    //TODO: JJS: Unsafe disabling all limit checks...
-    violation = 0;
 
     // no torque if controls is not allowed
     if (!current_controls_allowed && (desired_torque != 0)) {
@@ -283,6 +282,17 @@ static int gm_tx_hook(CANPacket_t *to_send) {
 
 
 static void gm_validate_camera(int addr, CANPacket_t *to_fwd) {
+
+  // If we are forwarding, but we have seen no LKAS frames on cam bus for 2 seconds, stop forwarding!
+  if (gm_allow_fwd && (gm_good_cam_cnt <= 0)) {
+    uint32_t ts = microsecond_timer_get();
+    uint32_t ts_elapsed = get_ts_elapsed(ts, gm_start_ts);
+    if (ts_elapsed > 2000000) {
+      gm_allow_fwd = false;
+    }
+  }
+
+
   //TODO: Add more known good camera message ids
   if (addr == 384) {
     int len = GET_LEN(to_fwd);
@@ -351,6 +361,7 @@ static const addr_checks* gm_init(int16_t param) {
   gm_block_fwd = false;
   gm_camera_bus = 2;
   gm_has_relay = true;
+  gm_start_ts = microsecond_timer_get();
 
   if (car_harness_status == HARNESS_STATUS_NC) {
     //puts("gm_init: No harness attached, assuming OBD or Giraffe\n");
