@@ -235,8 +235,9 @@ class Panda(object):
           self._handle.controlWrite(Panda.REQUEST_IN, 0xd1, 1, 0, b'')
         else:
           self._handle.controlWrite(Panda.REQUEST_IN, 0xd8, 0, 0, b'')
-    except Exception:
-      pass
+    except Exception as e:
+      print("exception", e)
+      traceback.print_exc()
     if not enter_bootloader:
       self.reconnect()
 
