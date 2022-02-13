@@ -56,6 +56,7 @@ bool gm_block_fwd = false;
 int gm_camera_bus = 2;
 bool gm_has_relay = true;
 uint32_t gm_start_ts = 0;
+uint32_t gm_last_lkas_ts = 0;
 
 #define GM_MAX_STEER (GM_LIMITS[gm_safety_param].GM_MAX_STEER)
 #define GM_MAX_RT_DELTA (GM_LIMITS[gm_safety_param].GM_MAX_RT_DELTA)
@@ -257,7 +258,21 @@ static int gm_tx_hook(CANPacket_t *to_send) {
 
     if (violation) {
       tx = 0;
-    }    
+    }
+
+    //Last chance to catch too-soon frame
+    if (tx == 1) {
+      uint32_t ts2 = microsecond_timer_get();
+      uint32_t ts_elapsed = get_ts_elapsed(ts2, gm_last_lkas_ts);
+      if (ts_elapsed <= 13000) { // Should be every 20ms, but it seems to tolerate down lower
+        // Hard 20ms cutoff was dropping WAY too many frames
+        tx = 0;
+      }
+      else {
+        gm_last_lkas_ts = ts2;
+      }
+    }
+
   }
 
   // GAS/REGEN: safety check
@@ -282,17 +297,6 @@ static int gm_tx_hook(CANPacket_t *to_send) {
 
 
 static void gm_validate_camera(int addr, CANPacket_t *to_fwd) {
-
-  // If we are forwarding, but we have seen no LKAS frames on cam bus for 2 seconds, stop forwarding!
-  if (gm_allow_fwd && (gm_good_cam_cnt <= 0)) {
-    uint32_t ts = microsecond_timer_get();
-    uint32_t ts_elapsed = get_ts_elapsed(ts, gm_start_ts);
-    if (ts_elapsed > 2000000) {
-      gm_allow_fwd = false;
-    }
-  }
-
-
   //TODO: Add more known good camera message ids
   if (addr == 384) {
     int len = GET_LEN(to_fwd);
@@ -313,6 +317,16 @@ static void gm_validate_camera(int addr, CANPacket_t *to_fwd) {
     gm_good_cam_cnt = 0;
     gm_block_fwd = true;
   }
+
+  // If we are forwarding, but we have seen no LKAS frames on cam bus for 3 seconds, stop forwarding!
+  if (gm_allow_fwd && (gm_good_cam_cnt <= 0)) {
+    uint32_t ts = microsecond_timer_get();
+    uint32_t ts_elapsed = get_ts_elapsed(ts, gm_start_ts);
+    if (ts_elapsed > 3000000) {
+      gm_allow_fwd = false;
+    }
+  }
+
 }
 
 static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
@@ -326,7 +340,7 @@ static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
   else if (bus_num == gm_camera_bus) {
     int addr = GET_ADDR(to_fwd);
 
-    // Do extra testing on frames from the came bus untill we have seen 2 good LKAS frames
+    // Do extra testing on frames from the cam bus untill we have seen 2 good LKAS frames
     // If any bad frames are encountered before then, forwarding is blocked
     // For OBD-based connections, forwarding defaults to off and is enabled if we see good LKAS
     // For harness-based connections, forwarding defaults to on and is disabled if we see bad frames
@@ -364,6 +378,9 @@ static const addr_checks* gm_init(int16_t param) {
   gm_start_ts = microsecond_timer_get();
 
   if (car_harness_status == HARNESS_STATUS_NC) {
+    //TODO: It seems as though the OBD2 harness may present as having a harness w relay.
+    // So this may not work to detect a relay as previously thought
+    // Seems to work with grey panda tho
     //puts("gm_init: No harness attached, assuming OBD or Giraffe\n");
     //OBD harness and older pandas use bus 1 and no relay
     //Most likely if we are using the OBD Harness, we have an ASCM and don't want to forward.
