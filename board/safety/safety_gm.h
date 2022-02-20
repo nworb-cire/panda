@@ -108,6 +108,8 @@ static int gm_rx_hook(CANPacket_t *to_push) {
       vehicle_moving = GET_BYTE(to_push, 0) | GET_BYTE(to_push, 1);
     }
 
+    //TODO: Should we be checking the CC status?
+
     // ACC steering wheel buttons
     if (addr == 481) {
       int button = (GET_BYTE(to_push, 5) & 0x70U) >> 4;
@@ -117,11 +119,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
           controls_allowed = 1;
           break;
         case 6:  // cancel
-          if (!gas_interceptor_detected) {
-            // Need to be able to cancel CC for Pedal to work
-            //TODO: Investigate swapping controls
-            controls_allowed = 0;
-          }
+          controls_allowed = 0;
           break;
         default:
           break;  // any other button is irrelevant
