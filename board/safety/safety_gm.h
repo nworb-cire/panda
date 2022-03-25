@@ -8,48 +8,18 @@
 //      brake rising edge
 //      brake > 0mph
 
-//const int GM_PARAM_HIGH_TORQUE = 1;
-//const int GM_PARAM_ENABLE_FWD = 2;
+const int GM_MAX_STEER = 300;
+const int GM_MAX_RT_DELTA = 128;          // max delta torque allowed for real time checks
+const uint32_t GM_RT_INTERVAL = 250000;    // 250ms between real time checks
+const int GM_MAX_RATE_UP = 7;
+const int GM_MAX_RATE_DOWN = 17;
+const int GM_DRIVER_TORQUE_ALLOWANCE = 50;
+const int GM_DRIVER_TORQUE_FACTOR = 4;
+const int GM_MAX_GAS = 3072;
+const int GM_MAX_REGEN = 1404;
+const int GM_MAX_BRAKE = 350;
 
-typedef struct GM_LIMIT {
-  const int GM_MAX_STEER;
-  const int GM_MAX_RT_DELTA;
-  const int GM_MAX_RATE_UP;
-  const int GM_MAX_RATE_DOWN;
-  const int GM_DRIVER_TORQUE_ALLOWANCE;
-  const int GM_DRIVER_TORQUE_FACTOR;
-  const int GM_MAX_GAS;
-  const int GM_MAX_REGEN;
-  const int GM_MAX_BRAKE;
-}GM_LIMIT;
 
-const GM_LIMIT GM_LIMITS[] =
-{
-  { // safety param 0 - Default
-    .GM_MAX_STEER = 300,
-    .GM_MAX_RT_DELTA = 128,
-    .GM_MAX_RATE_UP = 7, 
-    .GM_MAX_RATE_DOWN = 17,
-    .GM_DRIVER_TORQUE_ALLOWANCE = 50,
-    .GM_DRIVER_TORQUE_FACTOR = 4,
-    .GM_MAX_GAS = 3072,
-    .GM_MAX_REGEN = 1404,
-    .GM_MAX_BRAKE = 350
-  },
-  { // safety param 1 - Trucks
-    .GM_MAX_STEER = 600,
-    .GM_MAX_RT_DELTA = 319,
-    .GM_MAX_RATE_UP = 14, 
-    .GM_MAX_RATE_DOWN = 34,
-    .GM_DRIVER_TORQUE_ALLOWANCE = 100,
-    .GM_DRIVER_TORQUE_FACTOR = 4,
-    .GM_MAX_GAS = 3072,
-    .GM_MAX_REGEN = 1404,
-    .GM_MAX_BRAKE = 350
-  },
-};
-
-int gm_safety_param = 0;
 int gm_good_cam_cnt = 0;
 bool gm_allow_fwd = true;
 bool gm_block_fwd = false;
@@ -58,17 +28,6 @@ bool gm_has_relay = true;
 uint32_t gm_start_ts = 0;
 uint32_t gm_last_lkas_ts = 0;
 
-#define GM_MAX_STEER (GM_LIMITS[gm_safety_param].GM_MAX_STEER)
-#define GM_MAX_RT_DELTA (GM_LIMITS[gm_safety_param].GM_MAX_RT_DELTA)
-#define GM_MAX_RATE_UP (GM_LIMITS[gm_safety_param].GM_MAX_RATE_UP)
-#define GM_MAX_RATE_DOWN (GM_LIMITS[gm_safety_param].GM_MAX_RATE_DOWN)
-#define GM_DRIVER_TORQUE_ALLOWANCE (GM_LIMITS[gm_safety_param].GM_DRIVER_TORQUE_ALLOWANCE)
-#define GM_DRIVER_TORQUE_FACTOR (GM_LIMITS[gm_safety_param].GM_DRIVER_TORQUE_FACTOR)
-#define GM_MAX_GAS (GM_LIMITS[gm_safety_param].GM_MAX_GAS)
-#define GM_MAX_REGEN (GM_LIMITS[gm_safety_param].GM_MAX_REGEN)
-#define GM_MAX_BRAKE (GM_LIMITS[gm_safety_param].GM_MAX_BRAKE)
-
-const uint32_t GM_RT_INTERVAL = 250000;    // 250ms between real time checks
 const int GM_GAS_INTERCEPTOR_THRESHOLD = 458;  // (610 + 306.25) / 2ratio between offset and gain from dbc file
 #define GM_GET_INTERCEPTOR(msg) (((GET_BYTE((msg), 0) << 8) + GET_BYTE((msg), 1) + (GET_BYTE((msg), 2) << 8) + GET_BYTE((msg), 3)) / 2) // avg between 2 tracks
 
@@ -340,6 +299,7 @@ static void gm_validate_camera(int addr, CANPacket_t *to_fwd) {
 
 static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
   int bus_fwd = -1;
+  // TODO JJS: Forwarder FAILS MISERABLY when there is no camera
 
   if (bus_num == 0) {
     if (gm_allow_fwd && !gm_block_fwd) {
@@ -376,9 +336,8 @@ static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
   return bus_fwd;
 }
 
-
 static const addr_checks* gm_init(int16_t param) {
-  gm_safety_param = (int)param;
+  UNUSED(param);
   gm_good_cam_cnt = 0;
   gm_allow_fwd = true;
   gm_block_fwd = false;
