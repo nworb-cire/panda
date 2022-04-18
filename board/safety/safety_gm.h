@@ -179,68 +179,81 @@ static int gm_tx_hook(CANPacket_t *to_send, bool longitudinal_allowed) {
     }
   }
 
-  // LKA STEER: safety check
+  // // LKA STEER: safety check
+  // if (addr == 384) {
+  //   //int rolling_counter = GET_BYTE(to_send, 0) >> 4;
+  //   int desired_torque = ((GET_BYTE(to_send, 0) & 0x7U) << 8) + GET_BYTE(to_send, 1);
+  //   uint32_t ts = microsecond_timer_get();
+  //   bool violation = 0;
+  //   desired_torque = to_signed(desired_torque, 11);
+
+  //   if (current_controls_allowed) {
+
+  //     // *** global torque limit check ***
+  //     violation |= max_limit_check(desired_torque, GM_MAX_STEER, -GM_MAX_STEER);
+
+  //     // *** torque rate limit check ***
+  //     violation |= driver_limit_check(desired_torque, desired_torque_last, &torque_driver,
+  //       GM_MAX_STEER, GM_MAX_RATE_UP, GM_MAX_RATE_DOWN,
+  //       GM_DRIVER_TORQUE_ALLOWANCE, GM_DRIVER_TORQUE_FACTOR);
+
+  //     // used next time
+  //     desired_torque_last = desired_torque;
+
+  //     // TODO: JJS: Reenable after finding better numbers
+  //     // // *** torque real time rate limit check ***
+  //     // violation |= rt_rate_limit_check(desired_torque, rt_torque_last, GM_MAX_RT_DELTA);
+
+  //     // // every RT_INTERVAL set the new limits
+  //     // uint32_t ts_elapsed = get_ts_elapsed(ts, ts_last);
+  //     // if (ts_elapsed > GM_RT_INTERVAL) {
+  //     //   rt_torque_last = desired_torque;
+  //     //   ts_last = ts;
+  //     // }
+  //   }
+
+  //   // no torque if controls is not allowed
+  //   if (!current_controls_allowed && (desired_torque != 0)) {
+  //     violation = 1;
+  //   }
+
+  //   // reset to 0 if either controls is not allowed or there's a violation
+  //   if (violation || !current_controls_allowed) {
+  //     desired_torque_last = 0;
+  //     rt_torque_last = 0;
+  //     ts_last = ts;
+  //   }
+
+  //   if (violation) {
+  //     tx = 0;
+  //   }
+
+  //   //Last chance to catch too-soon frame
+  //   if (tx == 1) {
+  //     uint32_t ts2 = microsecond_timer_get();
+  //     uint32_t ts_elapsed = get_ts_elapsed(ts2, gm_last_lkas_ts);
+  //     if (ts_elapsed <= 13000) { // Should be every 20ms, but it seems to tolerate down lower
+  //       // Hard 20ms cutoff was dropping WAY too many frames
+  //       tx = 0;
+  //     }
+  //     else {
+  //       gm_last_lkas_ts = ts2;
+  //     }
+  //   }
+
+  // }
+
+  //Last chance to catch too-soon frame
   if (addr == 384) {
-    //int rolling_counter = GET_BYTE(to_send, 0) >> 4;
-    int desired_torque = ((GET_BYTE(to_send, 0) & 0x7U) << 8) + GET_BYTE(to_send, 1);
-    uint32_t ts = microsecond_timer_get();
-    bool violation = 0;
-    desired_torque = to_signed(desired_torque, 11);
-
-    if (current_controls_allowed) {
-
-      // *** global torque limit check ***
-      violation |= max_limit_check(desired_torque, GM_MAX_STEER, -GM_MAX_STEER);
-
-      // *** torque rate limit check ***
-      violation |= driver_limit_check(desired_torque, desired_torque_last, &torque_driver,
-        GM_MAX_STEER, GM_MAX_RATE_UP, GM_MAX_RATE_DOWN,
-        GM_DRIVER_TORQUE_ALLOWANCE, GM_DRIVER_TORQUE_FACTOR);
-
-      // used next time
-      desired_torque_last = desired_torque;
-
-      // TODO: JJS: Reenable after finding better numbers
-      // // *** torque real time rate limit check ***
-      // violation |= rt_rate_limit_check(desired_torque, rt_torque_last, GM_MAX_RT_DELTA);
-
-      // // every RT_INTERVAL set the new limits
-      // uint32_t ts_elapsed = get_ts_elapsed(ts, ts_last);
-      // if (ts_elapsed > GM_RT_INTERVAL) {
-      //   rt_torque_last = desired_torque;
-      //   ts_last = ts;
-      // }
-    }
-
-    // no torque if controls is not allowed
-    if (!current_controls_allowed && (desired_torque != 0)) {
-      violation = 1;
-    }
-
-    // reset to 0 if either controls is not allowed or there's a violation
-    if (violation || !current_controls_allowed) {
-      desired_torque_last = 0;
-      rt_torque_last = 0;
-      ts_last = ts;
-    }
-
-    if (violation) {
+    uint32_t ts2 = microsecond_timer_get();
+    uint32_t ts_elapsed = get_ts_elapsed(ts2, gm_last_lkas_ts);
+    if (ts_elapsed <= 13000) { // Should be every 20ms, but it seems to tolerate down lower
+      // Hard 20ms cutoff was dropping WAY too many frames
       tx = 0;
     }
-
-    //Last chance to catch too-soon frame
-    if (tx == 1) {
-      uint32_t ts2 = microsecond_timer_get();
-      uint32_t ts_elapsed = get_ts_elapsed(ts2, gm_last_lkas_ts);
-      if (ts_elapsed <= 13000) { // Should be every 20ms, but it seems to tolerate down lower
-        // Hard 20ms cutoff was dropping WAY too many frames
-        tx = 0;
-      }
-      else {
-        gm_last_lkas_ts = ts2;
-      }
+    else {
+      gm_last_lkas_ts = ts2;
     }
-
   }
 
   // GAS/REGEN: safety check
