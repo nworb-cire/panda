@@ -356,7 +356,7 @@ static int gm_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
   return bus_fwd;
 }
 
-static const addr_checks* gm_init(int16_t param) {
+static const addr_checks* gm_init(uint32_t param) {
   UNUSED(param);
   gm_good_cam_cnt = 0;
   gm_allow_fwd = true;
