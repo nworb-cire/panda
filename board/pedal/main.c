@@ -1,6 +1,14 @@
 // ********************* Includes *********************
-#define PEDAL_USB
-#define DEBUG
+
+
+#ifndef PEDAL_USB // TODO: Looks like builder creates a USB version
+  #define PEDAL_USB
+#endif
+
+#ifndef DEBUG // As a non-supported, pre-alpha device, debug is vital
+  #define DEBUG
+#endif
+
 #include "../config.h"
 
 #include "early_init.h"
