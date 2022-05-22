@@ -100,7 +100,7 @@ static int gm_rx_hook(CANPacket_t *to_push) {
     if (addr == 241) {
       // Brake pedal's potentiometer returns near-zero reading
       // even when pedal is not pressed
-      brake_pressed = GET_BYTE(to_push, 1) >= 10U;
+      brake_pressed = GET_BYTE(to_push, 1) >= 11U;
     }
 
     if (addr == 452) {
