@@ -269,9 +269,10 @@ void generic_rx_checks(bool stock_ecu_detected) {
   regen_braking_prev = regen_braking;
 
   // check if stock ECU is on bus broken by car harness
-//  if ((safety_mode_cnt > RELAY_TRNS_TIMEOUT) && stock_ecu_detected) {
+  if ((safety_mode_cnt > RELAY_TRNS_TIMEOUT) && stock_ecu_detected) {
+    (void) 0;
 //    relay_malfunction_set();
-//  }
+  }
 }
 
 void relay_malfunction_set(void) {
