@@ -68,6 +68,7 @@ uint32_t gm_last_lkas_ts = 0;
 #define GM_MAX_REGEN (GM_LIMITS[gm_safety_param].GM_MAX_REGEN)
 #define GM_MAX_BRAKE (GM_LIMITS[gm_safety_param].GM_MAX_BRAKE)
 
+const uint16_t GM_RELAY_BYPASS = 8;
 const uint32_t GM_RT_INTERVAL = 250000;    // 250ms between real time checks
 const int GM_GAS_INTERCEPTOR_THRESHOLD = 458;  // (610 + 306.25) / 2ratio between offset and gain from dbc file
 #define GM_GET_INTERCEPTOR(msg) (((GET_BYTE((msg), 0) << 8) + GET_BYTE((msg), 1) + (GET_BYTE((msg), 2) << 8) + GET_BYTE((msg), 3)) / 2) // avg between 2 tracks
@@ -187,7 +188,7 @@ static int gm_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     // 384 = ASCMLKASteeringCmd
     // 715 = ASCMGasRegenCmd
     //generic_rx_checks(((addr == 384) || (addr == 715)));
-    generic_rx_checks(addr == 384);
+    generic_rx_checks((addr == 384) && !gm_relay_malfunction_bypass);
     //TODO: relay malfunction firing when 715 is stock
   }
   return valid;
@@ -428,6 +429,7 @@ static const addr_checks* gm_init(int16_t param) {
   lateral_allowed = true;
   controls_allowed = false;
   relay_malfunction_reset();
+  gm_relay_malfunction_bypass = GET_FLAG(param, GM_RELAY_BYPASS);
   return &gm_rx_checks;
 }
 
