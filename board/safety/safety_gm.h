@@ -190,7 +190,7 @@ static safety_config gm_init(uint16_t param) {
   const uint16_t GM_PARAM_HW_CAM = 1;
   const uint16_t GM_PARAM_ALTERNATE_TORQUE_LIMIT = 4;
 
-  static const LongitudinalLimits GM_ASCM_LONG_LIMITS_STD = {
+  static const LongitudinalLimits GM_ASCM_LONG_LIMITS = {
     .max_gas = 1346,
     .min_gas = -650,
     .inactive_gas = -650,
@@ -209,7 +209,7 @@ static safety_config gm_init(uint16_t param) {
                                            {0x315, 2, 5}};  // ch bus
 
 
-  static const LongitudinalLimits GM_CAM_LONG_LIMITS_STD = {
+  static const LongitudinalLimits GM_CAM_LONG_LIMITS = {
     .max_gas = 1346,
     .min_gas = -540,
     .inactive_gas = -500,
@@ -249,7 +249,7 @@ static safety_config gm_init(uint16_t param) {
     if (gm_alternate_torque_limit) {
       gm_long_limits = &GM_ASCM_LONG_LIMITS_ALT;
     } else {
-      gm_long_limits = &GM_ASCM_LONG_LIMITS_STD;
+      gm_long_limits = &GM_ASCM_LONG_LIMITS;
     }
   } else if (gm_hw == GM_CAM) {
     if (gm_alternate_torque_limit) {
