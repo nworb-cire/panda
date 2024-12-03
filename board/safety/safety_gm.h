@@ -210,7 +210,7 @@ static safety_config gm_init(uint16_t param) {
 
 
   static const LongitudinalLimits GM_CAM_LONG_LIMITS_STD = {
-    .max_gas = max_torque_value,
+    .max_gas = 1346,
     .min_gas = -540,
     .inactive_gas = -500,
     .max_brake = 400,
