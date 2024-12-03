@@ -190,10 +190,15 @@ static safety_config gm_init(uint16_t param) {
   const uint16_t GM_PARAM_HW_CAM = 1;
   const uint16_t GM_PARAM_ALTERNATE_TORQUE_LIMIT = 4;
 
-  int max_torque_value = GET_FLAG(param, GM_PARAM_ALTERNATE_TORQUE_LIMIT) ? 3200 : 1346;
+  static const LongitudinalLimits GM_ASCM_LONG_LIMITS_STD = {
+    .max_gas = 1346,
+    .min_gas = -650,
+    .inactive_gas = -650,
+    .max_brake = 400,
+  };
 
-  static const LongitudinalLimits GM_ASCM_LONG_LIMITS = {
-    .max_gas = max_torque_value,
+  static const LongitudinalLimits GM_ASCM_LONG_LIMITS_ALT = {
+    .max_gas = 3200,
     .min_gas = -650,
     .inactive_gas = -650,
     .max_brake = 400,
@@ -204,12 +209,19 @@ static safety_config gm_init(uint16_t param) {
                                            {0x315, 2, 5}};  // ch bus
 
 
-  static const LongitudinalLimits GM_CAM_LONG_LIMITS = {
+  static const LongitudinalLimits GM_CAM_LONG_LIMITS_STD = {
     .max_gas = max_torque_value,
     .min_gas = -540,
     .inactive_gas = -500,
     .max_brake = 400,
   };
+
+    static const LongitudinalLimits GM_CAM_LONG_LIMITS_ALT = {
+      .max_gas = 3200,
+      .min_gas = -540,
+      .inactive_gas = -500,
+      .max_brake = 400,
+    };
 
   static const CanMsg GM_CAM_LONG_TX_MSGS[] = {{0x180, 0, 4}, {0x315, 0, 5}, {0x2CB, 0, 8}, {0x370, 0, 6},  // pt bus
                                                {0x184, 2, 8}};  // camera bus
@@ -231,11 +243,20 @@ static safety_config gm_init(uint16_t param) {
                                           {0x1E1, 2, 7}, {0x184, 2, 8}};  // camera bus
 
   gm_hw = GET_FLAG(param, GM_PARAM_HW_CAM) ? GM_CAM : GM_ASCM;
+  gm_alternate_torque_limit = GET_FLAG(param, GM_PARAM_ALTERNATE_TORQUE_LIMIT);
 
   if (gm_hw == GM_ASCM) {
-    gm_long_limits = &GM_ASCM_LONG_LIMITS;
+    if (gm_alternate_torque_limit) {
+      gm_long_limits = &GM_ASCM_LONG_LIMITS_ALT;
+    } else {
+      gm_long_limits = &GM_ASCM_LONG_LIMITS_STD;
+    }
   } else if (gm_hw == GM_CAM) {
-    gm_long_limits = &GM_CAM_LONG_LIMITS;
+    if (gm_alternate_torque_limit) {
+      gm_long_limits = &GM_CAM_LONG_LIMITS_ALT;
+    } else {
+      gm_long_limits = &GM_CAM_LONG_LIMITS;
+    }
   } else {
   }
 
