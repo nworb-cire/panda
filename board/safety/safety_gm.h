@@ -18,6 +18,7 @@ typedef enum {
 static GmHardware gm_hw = GM_ASCM;
 static bool gm_cam_long = false;
 static bool gm_pcm_cruise = false;
+static bool gm_alternate_torque_limit = false;
 
 static void gm_rx_hook(const CANPacket_t *to_push) {
 
@@ -187,9 +188,12 @@ static int gm_fwd_hook(int bus_num, int addr) {
 
 static safety_config gm_init(uint16_t param) {
   const uint16_t GM_PARAM_HW_CAM = 1;
+  const uint16_t GM_PARAM_ALTERNATE_TORQUE_LIMIT = 4;
+
+  int max_torque_value = GET_FLAG(param, GM_PARAM_ALTERNATE_TORQUE_LIMIT) ? 3200 : 1346;
 
   static const LongitudinalLimits GM_ASCM_LONG_LIMITS = {
-    .max_gas = 1018,
+    .max_gas = max_torque_value,
     .min_gas = -650,
     .inactive_gas = -650,
     .max_brake = 400,
@@ -201,7 +205,7 @@ static safety_config gm_init(uint16_t param) {
 
 
   static const LongitudinalLimits GM_CAM_LONG_LIMITS = {
-    .max_gas = 1346,
+    .max_gas = max_torque_value,
     .min_gas = -540,
     .inactive_gas = -500,
     .max_brake = 400,
